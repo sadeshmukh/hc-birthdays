@@ -9,6 +9,11 @@ import {
 } from "../lib/db";
 
 const currentUser = await getCurrentUser(Astro.cookies);
+
+if (!currentUser) {
+  return Astro.redirect("/api/auth/login");
+}
+
 const allBirthdays = await getAllBirthdays();
 const upcomingBirthdays = await getUpcomingBirthdays(30);
 const todaysBirthdays = await getTodaysBirthdays();
