@@ -28,4 +28,3 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./
 
 CMD ["bun", "./dist/server/entry.mjs"]
-
