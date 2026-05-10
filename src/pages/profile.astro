@@ -1,152 +1,167 @@
 ---
-import Layout from '../layouts/Layout.astro';
-import { getCurrentUser } from '../lib/session';
+import Layout from "../layouts/Layout.astro";
+import { getCurrentUser } from "../lib/session";
 
 const currentUser = await getCurrentUser(Astro.cookies);
 
 if (!currentUser) {
-  return Astro.redirect('/api/auth/login');
+  return Astro.redirect("/api/auth/login");
 }
 
-const months = [
-  { value: 1, label: 'January' },
-  { value: 2, label: 'February' },
-  { value: 3, label: 'March' },
-  { value: 4, label: 'April' },
-  { value: 5, label: 'May' },
-  { value: 6, label: 'June' },
-  { value: 7, label: 'July' },
-  { value: 8, label: 'August' },
-  { value: 9, label: 'September' },
-  { value: 10, label: 'October' },
-  { value: 11, label: 'November' },
-  { value: 12, label: 'December' },
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
-
 const currentYear = new Date().getFullYear();
 ---
 
-<Layout title="Edit Your Birthday - HC Birthdays">
+<Layout title="Your Birthday — HC Birthdays">
   <nav slot="header-right" class="flex items-center gap-4">
-    <a href="/" class="text-sm text-white/60 hover:text-white transition">Back to list</a>
-    <a href="/api/auth/logout" class="text-sm text-white/60 hover:text-white transition">Logout</a>
+    <a href="/" class="text-sm text-[#555] hover:text-[#aaa] transition-colors"
+      >← back</a
+    >
+    <a
+      href="/api/auth/logout"
+      class="text-sm text-[#555] hover:text-[#aaa] transition-colors">logout</a
+    >
   </nav>
 
-  <div class="max-w-md mx-auto">
-    <div class="bg-white/5 rounded-xl p-6 mb-6">
-      <div class="flex items-center gap-4 mb-6">
-        {currentUser.avatar_url ? (
-          <img src={currentUser.avatar_url} alt="" class="w-16 h-16 rounded-full" />
+  <div class="max-w-sm">
+    <div class="flex items-center gap-3 mb-8">
+      {
+        currentUser.avatar_url ? (
+          <img
+            src={currentUser.avatar_url}
+            alt=""
+            class="w-9 h-9 rounded-full"
+          />
         ) : (
-          <div class="w-16 h-16 rounded-full bg-gradient-to-br from-purple-400 to-blue-500 flex items-center justify-center text-2xl">
-            🎂
+          <div class="w-9 h-9 rounded-full bg-[#1a1a1a] flex items-center justify-center text-sm text-[#555]">
+            {currentUser.slack_username[0].toUpperCase()}
           </div>
-        )}
-        <div>
-          <h1 class="text-xl font-bold">@{currentUser.slack_username}</h1>
-          <p class="text-white/60 text-sm">Edit your birthday info</p>
+        )
+      }
+      <div>
+        <p class="text-sm font-medium">@{currentUser.slack_username}</p>
+        <p class="text-xs text-[#555]">birthday settings</p>
+      </div>
+    </div>
+
+    <form action="/api/birthday" method="POST" class="flex flex-col gap-5">
+      <div class="grid grid-cols-2 gap-3">
+        <div class="flex flex-col gap-1.5">
+          <label
+            for="month"
+            class="text-[10px] text-[#555] uppercase tracking-wider"
+            >Month</label
+          >
+          <select
+            id="month"
+            name="month"
+            required
+            class="bg-[#161616] border border-[#252525] rounded-md px-3 py-2 text-sm text-[#e2e2e2] focus:outline-none focus:border-[#ec3750] focus:ring-0"
+          >
+            <option value="">—</option>
+            {
+              MONTHS.map((m, i) => (
+                <option
+                  value={i + 1}
+                  selected={currentUser.birthday_month === i + 1}
+                >
+                  {m}
+                </option>
+              ))
+            }
+          </select>
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label
+            for="day"
+            class="text-[10px] text-[#555] uppercase tracking-wider">Day</label
+          >
+          <select
+            id="day"
+            name="day"
+            required
+            class="bg-[#161616] border border-[#252525] rounded-md px-3 py-2 text-sm text-[#e2e2e2] focus:outline-none focus:border-[#ec3750] focus:ring-0"
+          >
+            <option value="">—</option>
+            {
+              Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                <option value={d} selected={currentUser.birthday_day === d}>
+                  {d}
+                </option>
+              ))
+            }
+          </select>
         </div>
       </div>
 
-      <form action="/api/birthday" method="POST" class="space-y-4">
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label for="month" class="block text-sm font-medium mb-2">Month</label>
-            <select
-              id="month"
-              name="month"
-              required
-              class="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-            >
-              <option value="" class="bg-gray-900">Select month</option>
-              {months.map((m) => (
-                <option
-                  value={m.value}
-                  selected={currentUser.birthday_month === m.value}
-                  class="bg-gray-900"
-                >
-                  {m.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label for="day" class="block text-sm font-medium mb-2">Day</label>
-            <select
-              id="day"
-              name="day"
-              required
-              class="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-            >
-              <option value="" class="bg-gray-900">Select day</option>
-              {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
-                <option
-                  value={d}
-                  selected={currentUser.birthday_day === d}
-                  class="bg-gray-900"
-                >
-                  {d}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div>
-          <label for="year" class="block text-sm font-medium mb-2">
-            Birth Year <span class="text-white/40">(optional)</span>
-          </label>
-          <select
-            id="year"
-            name="year"
-            class="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-          >
-            <option value="" class="bg-gray-900">Prefer not to say</option>
-            {Array.from({ length: 50 }, (_, i) => currentYear - i).map((y) => (
-              <option
-                value={y}
-                selected={currentUser.birth_year === y}
-                class="bg-gray-900"
-              >
+      <div class="flex flex-col gap-1.5">
+        <label
+          for="year"
+          class="text-[10px] text-[#555] uppercase tracking-wider"
+        >
+          Year <span class="text-[#333] normal-case not-italic">optional</span>
+        </label>
+        <select
+          id="year"
+          name="year"
+          class="bg-[#161616] border border-[#252525] rounded-md px-3 py-2 text-sm text-[#e2e2e2] focus:outline-none focus:border-[#ec3750] focus:ring-0"
+        >
+          <option value="">prefer not to say</option>
+          {
+            Array.from({ length: 50 }, (_, i) => currentYear - i).map((y) => (
+              <option value={y} selected={currentUser.birth_year === y}>
                 {y}
               </option>
-            ))}
-          </select>
-          <p class="text-white/40 text-xs mt-1">Share your age if you want!</p>
-        </div>
+            ))
+          }
+        </select>
+      </div>
 
-        <div>
-          <label for="channel" class="block text-sm font-medium mb-2">
-            Personal Slack Channel <span class="text-white/40">(optional)</span>
-          </label>
-          <div class="flex items-center">
-            <span class="bg-white/10 border border-r-0 border-white/20 rounded-l-lg px-3 py-2 text-white/60">#</span>
-            <input
-              type="text"
-              id="channel"
-              name="channel"
-              value={currentUser.slack_channel || ''}
-              placeholder="your-channel-name"
-              class="flex-1 bg-white/10 border border-white/20 rounded-r-lg px-3 py-2 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500"
-            />
-          </div>
-          <p class="text-white/40 text-xs mt-1">So people can wish you happy birthday!</p>
-        </div>
-
-        <button
-          type="submit"
-          class="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-medium py-3 px-4 rounded-lg transition"
+      <div class="flex flex-col gap-1.5">
+        <label
+          for="channel"
+          class="text-[10px] text-[#555] uppercase tracking-wider"
         >
-          Save Birthday
-        </button>
-      </form>
-    </div>
+          Slack channel <span class="text-[#333] normal-case">optional</span>
+        </label>
+        <div class="flex">
+          <span
+            class="bg-[#161616] border border-r-0 border-[#252525] rounded-l-md px-3 py-2 text-sm text-[#444]"
+            >#</span
+          >
+          <input
+            type="text"
+            id="channel"
+            name="channel"
+            value={currentUser.slack_channel || ""}
+            placeholder="your-channel"
+            class="flex-1 bg-[#161616] border border-[#252525] rounded-r-md px-3 py-2 text-sm text-[#e2e2e2] placeholder:text-[#2a2a2a] focus:outline-none focus:border-[#ec3750]"
+          />
+        </div>
+        <p class="text-[11px] text-[#333]">
+          So people can wish you happy birthday
+        </p>
+      </div>
 
-    {currentUser.birthday_month && (
-      <p class="text-center text-white/40 text-sm">
-        Your birthday is saved! It will appear on the homepage.
-      </p>
-    )}
+      <button
+        type="submit"
+        class="bg-[#ec3750] hover:bg-[#d42f46] text-white text-sm font-medium py-2 px-4 rounded-md transition-colors"
+      >
+        Save
+      </button>
+    </form>
   </div>
 </Layout>

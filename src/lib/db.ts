@@ -1,7 +1,7 @@
-import pg from 'pg';
+import pg from "pg";
 
 const pool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: import.meta.env.DATABASE_URL,
 });
 
 export async function initDb() {
@@ -37,7 +37,7 @@ export interface User {
 export async function upsertUser(
   slackId: string,
   slackUsername: string,
-  avatarUrl: string | null
+  avatarUrl: string | null,
 ): Promise<User> {
   const result = await pool.query(
     `INSERT INTO users (slack_id, slack_username, avatar_url)
@@ -47,16 +47,15 @@ export async function upsertUser(
        avatar_url = EXCLUDED.avatar_url,
        updated_at = CURRENT_TIMESTAMP
      RETURNING *`,
-    [slackId, slackUsername, avatarUrl]
+    [slackId, slackUsername, avatarUrl],
   );
   return result.rows[0];
 }
 
 export async function getUserBySlackId(slackId: string): Promise<User | null> {
-  const result = await pool.query(
-    'SELECT * FROM users WHERE slack_id = $1',
-    [slackId]
-  );
+  const result = await pool.query("SELECT * FROM users WHERE slack_id = $1", [
+    slackId,
+  ]);
   return result.rows[0] || null;
 }
 
@@ -65,7 +64,7 @@ export async function updateBirthday(
   month: number,
   day: number,
   year: number | null,
-  channel: string | null
+  channel: string | null,
 ): Promise<User> {
   const result = await pool.query(
     `UPDATE users SET
@@ -76,9 +75,25 @@ export async function updateBirthday(
        updated_at = CURRENT_TIMESTAMP
      WHERE slack_id = $1
      RETURNING *`,
-    [slackId, month, day, year, channel]
+    [slackId, month, day, year, channel],
   );
   return result.rows[0];
+}
+
+export async function getTodaysBirthdays(): Promise<User[]> {
+  const today = new Date();
+  const result = await pool.query(
+    "SELECT * FROM users WHERE birthday_month = $1 AND birthday_day = $2",
+    [today.getMonth() + 1, today.getDate()],
+  );
+  return result.rows;
+}
+
+export async function getAllBirthdays(): Promise<User[]> {
+  const result = await pool.query(
+    "SELECT * FROM users WHERE birthday_month IS NOT NULL AND birthday_day IS NOT NULL ORDER BY birthday_month, birthday_day",
+  );
+  return result.rows;
 }
 
 export async function getUpcomingBirthdays(limit = 20): Promise<User[]> {
@@ -94,16 +109,7 @@ export async function getUpcomingBirthdays(limit = 20): Promise<User[]> {
        birthday_month,
        birthday_day
      LIMIT $1`,
-    [limit]
-  );
-  return result.rows;
-}
-
-export async function getTodaysBirthdays(): Promise<User[]> {
-  const result = await pool.query(
-    `SELECT * FROM users
-     WHERE birthday_month = EXTRACT(MONTH FROM CURRENT_DATE)
-       AND birthday_day = EXTRACT(DAY FROM CURRENT_DATE)`
+    [limit],
   );
   return result.rows;
 }

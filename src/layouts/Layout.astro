@@ -1,5 +1,5 @@
 ---
-import '../styles/global.css';
+import "../styles/global.css";
 
 interface Props {
   title: string;
@@ -13,29 +13,34 @@ const { title } = Astro.props;
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Hack Club Birthdays - Celebrate with your fellow hackers!" />
+    <meta name="description" content="Hack Club Birthdays" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>{title}</title>
   </head>
-  <body class="min-h-screen bg-gradient-to-br from-purple-900 via-indigo-900 to-blue-900 text-white">
-    <div class="min-h-screen flex flex-col">
-      <header class="border-b border-white/10 backdrop-blur-sm bg-white/5">
-        <div class="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-          <a href="/" class="flex items-center gap-3 hover:opacity-80 transition">
-            <span class="text-3xl">🎂</span>
-            <span class="text-xl font-bold">HC Birthdays</span>
-          </a>
-          <slot name="header-right" />
-        </div>
-      </header>
-      <main class="flex-1 max-w-4xl mx-auto px-4 py-8 w-full">
-        <slot />
-      </main>
-      <footer class="border-t border-white/10 py-6">
-        <div class="max-w-4xl mx-auto px-4 text-center text-white/60 text-sm">
-          Made with love for <a href="https://hackclub.com" class="text-white/80 hover:text-white underline">Hack Club</a>
-        </div>
-      </footer>
-    </div>
+  <body class="min-h-screen bg-[#0d0d0d] text-[#e2e2e2] antialiased">
+    <header class="border-b border-[#1f1f1f]">
+      <div
+        class="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between"
+      >
+        <a
+          href="/"
+          class="text-sm font-medium text-[#e2e2e2] hover:text-white transition-colors"
+        >
+          hc birthdays
+        </a>
+        <slot name="header-right" />
+      </div>
+    </header>
+    <main class="max-w-5xl mx-auto px-6 py-8 w-full">
+      <slot />
+    </main>
+    <footer class="border-t border-[#1f1f1f] py-6 mt-12">
+      <div class="max-w-5xl mx-auto px-6 text-center text-[#333] text-xs">
+        <a
+          href="https://hackclub.com"
+          class="hover:text-[#666] transition-colors">hack club</a
+        >
+      </div>
+    </footer>
   </body>
 </html>

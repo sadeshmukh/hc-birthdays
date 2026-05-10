@@ -1,160 +1,337 @@
 ---
-import Layout from '../layouts/Layout.astro';
-import { getCurrentUser } from '../lib/session';
-import { getUpcomingBirthdays, getTodaysBirthdays, type User } from '../lib/db';
+import Layout from "../layouts/Layout.astro";
+import { getCurrentUser } from "../lib/session";
+import {
+  getUpcomingBirthdays,
+  getAllBirthdays,
+  getTodaysBirthdays,
+  type User,
+} from "../lib/db";
 
 const currentUser = await getCurrentUser(Astro.cookies);
-const upcomingBirthdays = await getUpcomingBirthdays(50);
+const allBirthdays = await getAllBirthdays();
+const upcomingBirthdays = await getUpcomingBirthdays(30);
 const todaysBirthdays = await getTodaysBirthdays();
 
-const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const today = new Date();
+today.setHours(0, 0, 0, 0);
 
-function formatBirthday(user: User): string {
-  const month = monthNames[user.birthday_month! - 1];
-  return `${month} ${user.birthday_day}`;
+const mParam = parseInt(Astro.url.searchParams.get("m") || "");
+const yParam = parseInt(Astro.url.searchParams.get("y") || "");
+const viewMonth = mParam >= 1 && mParam <= 12 ? mParam : today.getMonth() + 1;
+const viewYear = yParam > 2000 ? yParam : today.getFullYear();
+
+const firstDayOfMonth = new Date(viewYear, viewMonth - 1, 1).getDay();
+const daysInMonth = new Date(viewYear, viewMonth, 0).getDate();
+const trailingCells =
+  (firstDayOfMonth + daysInMonth) % 7 === 0
+    ? 0
+    : 7 - ((firstDayOfMonth + daysInMonth) % 7);
+
+const birthdaysByDay = new Map<number, User[]>();
+for (const user of allBirthdays) {
+  if (user.birthday_month === viewMonth) {
+    const d = user.birthday_day!;
+    if (!birthdaysByDay.has(d)) birthdaysByDay.set(d, []);
+    birthdaysByDay.get(d)!.push(user);
+  }
 }
+
+const prevDate = new Date(viewYear, viewMonth - 2, 1);
+const nextDate = new Date(viewYear, viewMonth, 1);
+const prevLink = `/?m=${prevDate.getMonth() + 1}&y=${prevDate.getFullYear()}`;
+const nextLink = `/?m=${nextDate.getMonth() + 1}&y=${nextDate.getFullYear()}`;
+
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+const SHORT_MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+const DAY_HEADERS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
 function getDaysUntil(user: User): number {
-  const today = new Date();
-  const thisYear = today.getFullYear();
-  let birthday = new Date(thisYear, user.birthday_month! - 1, user.birthday_day!);
-  if (birthday < today) {
-    birthday = new Date(thisYear + 1, user.birthday_month! - 1, user.birthday_day!);
-  }
-  const diff = birthday.getTime() - today.getTime();
-  return Math.ceil(diff / (1000 * 60 * 60 * 24));
+  const t = new Date();
+  t.setHours(0, 0, 0, 0);
+  let bd = new Date(
+    t.getFullYear(),
+    user.birthday_month! - 1,
+    user.birthday_day!,
+  );
+  bd.setHours(0, 0, 0, 0);
+  if (bd < t)
+    bd = new Date(
+      t.getFullYear() + 1,
+      user.birthday_month! - 1,
+      user.birthday_day!,
+    );
+  return Math.round((bd.getTime() - t.getTime()) / 86400000);
 }
 
-const error = Astro.url.searchParams.get('error');
+const error = Astro.url.searchParams.get("error");
 ---
 
-<Layout title="Hack Club Birthdays">
+<Layout title="HC Birthdays">
   <nav slot="header-right" class="flex items-center gap-4">
-    {currentUser ? (
-      <>
-        <a href="/profile" class="flex items-center gap-2 hover:opacity-80 transition">
-          {currentUser.avatar_url && (
-            <img src={currentUser.avatar_url} alt="" class="w-8 h-8 rounded-full" />
-          )}
-          <span class="text-sm">@{currentUser.slack_username}</span>
+    {
+      currentUser ? (
+        <>
+          <a
+            href="/profile"
+            class="flex items-center gap-2 hover:opacity-70 transition-opacity"
+          >
+            {currentUser.avatar_url && (
+              <img
+                src={currentUser.avatar_url}
+                alt=""
+                class="w-7 h-7 rounded-full"
+              />
+            )}
+            <span class="text-sm text-[#aaa]">
+              @{currentUser.slack_username}
+            </span>
+          </a>
+          <a
+            href="/api/auth/logout"
+            class="text-sm text-[#555] hover:text-[#aaa] transition-colors"
+          >
+            logout
+          </a>
+        </>
+      ) : (
+        <a
+          href="/api/auth/login"
+          class="bg-[#ec3750] hover:bg-[#d42f46] text-white text-sm font-medium px-4 py-1.5 rounded-md transition-colors"
+        >
+          Sign in with Hack Club
         </a>
-        <a href="/api/auth/logout" class="text-sm text-white/60 hover:text-white transition">Logout</a>
-      </>
-    ) : (
-      <a href="/api/auth/login" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg text-sm font-medium transition">
-        Sign in with Slack
-      </a>
-    )}
+      )
+    }
   </nav>
 
-  {error && (
-    <div class="bg-red-500/20 border border-red-500/50 rounded-lg p-4 mb-6">
-      <p class="text-red-200">Authentication error: {error}</p>
-    </div>
-  )}
+  {
+    error && (
+      <div class="mb-6 text-sm text-[#ec3750] border border-[#ec3750]/30 bg-[#ec3750]/5 rounded-md px-4 py-3">
+        auth error: {error}
+      </div>
+    )
+  }
 
-  {todaysBirthdays.length > 0 && (
-    <div class="bg-gradient-to-r from-pink-500/20 to-purple-500/20 border border-pink-500/30 rounded-xl p-6 mb-8">
-      <h2 class="text-2xl font-bold mb-4 flex items-center gap-2">
-        <span>🎉</span> Today's Birthdays!
-      </h2>
-      <div class="grid gap-3">
-        {todaysBirthdays.map((user) => (
-          <div class="flex items-center gap-4 bg-white/5 rounded-lg p-4">
-            {user.avatar_url ? (
-              <img src={user.avatar_url} alt="" class="w-12 h-12 rounded-full" />
-            ) : (
-              <div class="w-12 h-12 rounded-full bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center text-xl">
-                🎂
-              </div>
-            )}
-            <div class="flex-1">
-              <p class="font-semibold text-lg">@{user.slack_username}</p>
-              {user.birth_year && (
-                <p class="text-white/60 text-sm">Turning {new Date().getFullYear() - user.birth_year}!</p>
-              )}
-            </div>
-            {user.slack_channel && (
-              <a
-                href={`https://hackclub.slack.com/app_redirect?channel=${user.slack_channel}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                class="bg-pink-500 hover:bg-pink-600 px-4 py-2 rounded-lg text-sm font-medium transition"
-              >
-                Wish them happy birthday!
-              </a>
-            )}
+  <!-- Calendar -->
+  <div class="mb-10">
+    <div class="flex items-center justify-between mb-4">
+      <a
+        href={prevLink}
+        class="text-[#444] hover:text-[#888] transition-colors px-1 py-1 text-lg leading-none"
+        >‹</a
+      >
+      <span class="text-sm font-medium text-[#888]"
+        >{MONTH_NAMES[viewMonth - 1]} {viewYear}</span
+      >
+      <a
+        href={nextLink}
+        class="text-[#444] hover:text-[#888] transition-colors px-1 py-1 text-lg leading-none"
+        >›</a
+      >
+    </div>
+
+    <div class="grid grid-cols-7 mb-px">
+      {
+        DAY_HEADERS.map((d) => (
+          <div class="text-center text-[10px] text-[#333] font-medium uppercase tracking-wider py-2">
+            {d}
           </div>
-        ))}
-      </div>
-    </div>
-  )}
-
-  <div class="mb-8">
-    <div class="flex items-center justify-between mb-6">
-      <h2 class="text-2xl font-bold">Upcoming Birthdays</h2>
-      {!currentUser && (
-        <a href="/api/auth/login" class="text-sm text-white/60 hover:text-white transition">
-          Sign in to add yours
-        </a>
-      )}
+        ))
+      }
     </div>
 
-    {upcomingBirthdays.length === 0 ? (
-      <div class="text-center py-12 text-white/60">
-        <p class="text-6xl mb-4">🎂</p>
-        <p class="text-lg">No birthdays registered yet.</p>
-        {currentUser ? (
-          <a href="/profile" class="text-purple-300 hover:text-purple-200 underline mt-2 inline-block">
-            Be the first to add yours!
-          </a>
-        ) : (
-          <a href="/api/auth/login" class="text-purple-300 hover:text-purple-200 underline mt-2 inline-block">
-            Sign in to add your birthday
-          </a>
-        )}
-      </div>
-    ) : (
-      <div class="grid gap-3">
-        {upcomingBirthdays.map((user) => {
-          const daysUntil = getDaysUntil(user);
+    <div class="grid grid-cols-7 gap-px bg-[#1a1a1a]">
+      {
+        Array.from({ length: firstDayOfMonth }, () => (
+          <div class="bg-[#0d0d0d] min-h-18 p-1.5" />
+        ))
+      }
+      {
+        Array.from({ length: daysInMonth }, (_, i) => {
+          const day = i + 1;
+          const isToday =
+            day === today.getDate() &&
+            viewMonth === today.getMonth() + 1 &&
+            viewYear === today.getFullYear();
+          const users = birthdaysByDay.get(day) || [];
           return (
-            <div class="flex items-center gap-4 bg-white/5 hover:bg-white/10 rounded-lg p-4 transition">
-              {user.avatar_url ? (
-                <img src={user.avatar_url} alt="" class="w-10 h-10 rounded-full" />
-              ) : (
-                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-blue-500 flex items-center justify-center">
-                  🎂
-                </div>
-              )}
-              <div class="flex-1 min-w-0">
-                <p class="font-medium truncate">@{user.slack_username}</p>
-                <p class="text-white/60 text-sm">{formatBirthday(user)}</p>
-              </div>
-              <div class="text-right">
-                {daysUntil === 0 ? (
-                  <span class="text-pink-400 font-bold">Today!</span>
-                ) : daysUntil === 1 ? (
-                  <span class="text-purple-300 font-medium">Tomorrow</span>
-                ) : (
-                  <span class="text-white/60 text-sm">{daysUntil} days</span>
+            <div
+              class={`bg-[#0d0d0d] min-h-18 p-1.5 flex flex-col ${isToday ? "bg-[#111]" : ""}`}
+            >
+              <span
+                class={`text-[11px] w-5 h-5 flex items-center justify-center rounded-full mb-1 shrink-0 ${isToday ? "bg-[#ec3750] text-white font-semibold" : "text-[#444]"}`}
+              >
+                {day}
+              </span>
+              <div class="flex flex-wrap gap-0.5">
+                {users.slice(0, 5).map((u) =>
+                  u.avatar_url ? (
+                    <img
+                      src={u.avatar_url}
+                      alt={u.slack_username}
+                      title={`@${u.slack_username}`}
+                      class="w-5 h-5 rounded-full"
+                    />
+                  ) : (
+                    <div
+                      class="w-5 h-5 rounded-full bg-[#222] flex items-center justify-center text-[9px] text-[#555]"
+                      title={`@${u.slack_username}`}
+                    >
+                      {u.slack_username[0].toUpperCase()}
+                    </div>
+                  ),
+                )}
+                {users.length > 5 && (
+                  <span class="text-[#444] text-[9px] self-center">
+                    +{users.length - 5}
+                  </span>
                 )}
               </div>
-              {user.slack_channel && (
-                <a
-                  href={`https://hackclub.slack.com/app_redirect?channel=${user.slack_channel}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="text-purple-300 hover:text-purple-200 text-sm"
-                  title="Go to their channel"
-                >
-                  #{user.slack_channel}
-                </a>
-              )}
             </div>
           );
-        })}
+        })
+      }
+      {
+        Array.from({ length: trailingCells }, () => (
+          <div class="bg-[#0d0d0d] min-h-18 p-1.5" />
+        ))
+      }
+    </div>
+  </div>
+
+  {
+    todaysBirthdays.length > 0 && (
+      <div class="mb-8 border border-[#ec3750]/20 rounded-lg p-4">
+        <p class="text-xs text-[#ec3750] uppercase tracking-wider mb-3">
+          Today
+        </p>
+        <div class="flex flex-col gap-3">
+          {todaysBirthdays.map((user) => (
+            <div class="flex items-center gap-3">
+              {user.avatar_url ? (
+                <img
+                  src={user.avatar_url}
+                  alt=""
+                  class="w-8 h-8 rounded-full"
+                />
+              ) : (
+                <div class="w-8 h-8 rounded-full bg-[#1a1a1a] flex items-center justify-center text-sm text-[#555]">
+                  {user.slack_username[0].toUpperCase()}
+                </div>
+              )}
+              <span class="text-sm">@{user.slack_username}</span>
+              {user.birth_year && (
+                <span class="text-[#444] text-sm">
+                  · turning {today.getFullYear() - user.birth_year}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
-    )}
+    )
+  }
+
+  <!-- Upcoming list -->
+  <div>
+    <div class="flex items-center justify-between mb-3">
+      <p class="text-xs text-[#444] uppercase tracking-wider">Upcoming</p>
+      {
+        !currentUser && (
+          <a
+            href="/api/auth/login"
+            class="text-xs text-[#ec3750] hover:opacity-80 transition-opacity"
+          >
+            add yours →
+          </a>
+        )
+      }
+    </div>
+
+    {
+      upcomingBirthdays.length === 0 ? (
+        <p class="text-[#444] text-sm">
+          No birthdays yet.{" "}
+          {currentUser ? (
+            <a
+              href="/profile"
+              class="text-[#ec3750] hover:opacity-80 transition-opacity"
+            >
+              Add yours.
+            </a>
+          ) : (
+            <a
+              href="/api/auth/login"
+              class="text-[#ec3750] hover:opacity-80 transition-opacity"
+            >
+              Sign in to add yours.
+            </a>
+          )}
+        </p>
+      ) : (
+        <div class="flex flex-col divide-y divide-[#151515]">
+          {upcomingBirthdays.map((user) => {
+            const daysUntil = getDaysUntil(user);
+            return (
+              <div class="flex items-center gap-3 py-2.5">
+                {user.avatar_url ? (
+                  <img
+                    src={user.avatar_url}
+                    alt=""
+                    class="w-7 h-7 rounded-full shrink-0"
+                  />
+                ) : (
+                  <div class="w-7 h-7 rounded-full bg-[#1a1a1a] flex items-center justify-center text-xs text-[#444] shrink-0">
+                    {user.slack_username[0].toUpperCase()}
+                  </div>
+                )}
+                <span class="text-sm flex-1 min-w-0 truncate text-[#ccc]">
+                  @{user.slack_username}
+                </span>
+                <span class="text-sm text-[#444] shrink-0">
+                  {SHORT_MONTHS[user.birthday_month! - 1]} {user.birthday_day}
+                </span>
+                <span class="text-sm shrink-0 w-16 text-right">
+                  {daysUntil === 0 ? (
+                    <span class="text-[#ec3750]">today</span>
+                  ) : daysUntil === 1 ? (
+                    <span class="text-[#888]">tomorrow</span>
+                  ) : (
+                    <span class="text-[#333]">in {daysUntil}d</span>
+                  )}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )
+    }
   </div>
 </Layout>
