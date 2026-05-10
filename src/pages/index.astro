@@ -18,6 +18,22 @@ const allBirthdays = await getAllBirthdays();
 const upcomingBirthdays = await getUpcomingBirthdays(30);
 const todaysBirthdays = await getTodaysBirthdays();
 
+const channelIds = [...new Set(
+  [...upcomingBirthdays, ...todaysBirthdays]
+    .map(u => u.slack_channel)
+    .filter((c): c is string => !!c)
+)];
+const channelNames = new Map<string, string>();
+await Promise.all(channelIds.map(async (id) => {
+  try {
+    const res = await fetch(`https://flaron.halceon.dev/channel/${id}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.name) channelNames.set(id, data.name);
+    }
+  } catch {}
+}));
+
 const today = new Date();
 today.setHours(0, 0, 0, 0);
 
@@ -252,6 +268,16 @@ const error = Astro.url.searchParams.get("error");
                 </div>
               )}
               <span class="text-sm">@{user.slack_username}</span>
+              {user.slack_channel && channelNames.get(user.slack_channel) && (
+                <a
+                  href={`https://hackclub.slack.com/archives/${user.slack_channel}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-sm text-[#444] hover:text-[#888] transition-colors"
+                >
+                  #{channelNames.get(user.slack_channel)}
+                </a>
+              )}
               {user.birth_year && (
                 <span class="text-[#444] text-sm">
                   · turning {today.getFullYear() - user.birth_year}
@@ -320,6 +346,16 @@ const error = Astro.url.searchParams.get("error");
                 <span class="text-sm flex-1 min-w-0 truncate text-[#ccc]">
                   @{user.slack_username}
                 </span>
+                {user.slack_channel && channelNames.get(user.slack_channel) && (
+                  <a
+                    href={`https://hackclub.slack.com/archives/${user.slack_channel}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="text-sm text-[#444] hover:text-[#888] transition-colors shrink-0 hidden sm:block"
+                  >
+                    #{channelNames.get(user.slack_channel)}
+                  </a>
+                )}
                 <span class="text-sm text-[#444] shrink-0">
                   {SHORT_MONTHS[user.birthday_month! - 1]} {user.birthday_day}
                 </span>
