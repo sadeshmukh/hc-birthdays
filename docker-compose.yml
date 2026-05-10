@@ -2,7 +2,7 @@ services:
   app:
     build: .
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/hc_birthdays
+      - DATABASE_URL=${DATABASE_URL}
       - HCA_CLIENT_ID=${HCA_CLIENT_ID}
       - HCA_CLIENT_SECRET=${HCA_CLIENT_SECRET}
       - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-http://localhost:4321}
