@@ -1,68 +1,31 @@
 # HC Birthdays
 
-A birthday tracking app for Hack Club members. Sign in with Hack Club Auth, add your birthday, and see upcoming birthdays in the community.
+Birthday tracking for Hack Club members. Sign in with Hack Club Auth, set your birthday and optionally a Slack channel where people can find you, and see everyone's upcoming birthdays on a calendar.
 
-## Features
+Live at [bd.halceon.dev](https://bd.halceon.dev).
 
-- Sign in with Hack Club Auth (HCA)
-- Add your birthday (month, day, and optionally year)
-- Add your personal Slack channel so people can wish you happy birthday
-- Calendar view of upcoming birthdays
-- Special highlight for today's birthdays
+## Running locally
 
-## Tech Stack
-
-- **Astro** — Server-side rendered with Node adapter
-- **Tailwind CSS** — Styling
-- **PostgreSQL** — Database
-
-## Setup
-
-### Prerequisites
-
-- Node.js 20+ (or Bun)
-- PostgreSQL database
-- Hack Club Auth app credentials
-
-### Environment Variables
-
-Copy `.env.example` to `.env` and fill in the values:
-
-```bash
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/hc_birthdays
-HCA_CLIENT_ID=your_hca_client_id
-HCA_CLIENT_SECRET=your_hca_client_secret
-PUBLIC_BASE_URL=http://localhost:4321
-SESSION_SECRET=your-random-session-secret-at-least-32-chars
-```
-
-### Hack Club Auth Setup
-
-1. Enable developer mode and create an app at https://auth.hackclub.com
-2. Add OAuth redirect URL: `{PUBLIC_BASE_URL}/api/auth/callback`
-3. Required scope: `slack_id`
-4. Copy Client ID and Client Secret to your `.env`
-
-### Development
-
-```bash
-bun install
-bun dev
-```
-
-### Production (Docker)
+Copy `.env.example` to `.env` and fill in the values, then:
 
 ```bash
 docker compose up -d
 ```
 
-Or build and run manually:
+The app will be at `http://localhost:4321`.
 
-```bash
-docker build -t hc-birthdays .
-docker run -p 4321:4321 --env-file .env hc-birthdays
-```
+## Environment variables
 
-## License
+| Variable | Description |
+|---|---|
+| `DATABASE_URL` | Postgres connection string — use `@db:5432` when running via Docker Compose |
+| `HCA_CLIENT_ID` | Hack Club Auth OAuth client ID |
+| `HCA_CLIENT_SECRET` | Hack Club Auth OAuth client secret |
+| `PUBLIC_BASE_URL` | Public base URL (e.g. `https://bd.halceon.dev`) |
+| `SESSION_SECRET` | Random string, at least 32 chars |
 
-MIT
+To get HCA credentials: enable developer mode at [auth.hackclub.com](https://auth.hackclub.com), create an app, and set the redirect URL to `{PUBLIC_BASE_URL}/api/auth/callback` with scope `slack_id`.
+
+## Stack
+
+Astro (SSR) · Tailwind · PostgreSQL
