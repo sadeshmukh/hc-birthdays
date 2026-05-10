@@ -1,14 +1,21 @@
-FROM node:20-alpine AS builder
+FROM oven/bun:1 AS builder
 
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm ci
+COPY package.json bun.lock* ./
+RUN bun install --frozen-lockfile
 
 COPY . .
-RUN npm run build
 
-FROM node:20-alpine AS runner
+# Build-time env vars (needed by Astro for PUBLIC_* vars)
+ARG PUBLIC_BASE_URL
+ARG HCA_CLIENT_ID
+ARG HCA_CLIENT_SECRET
+ARG SESSION_SECRET
+
+RUN bun run build
+
+FROM oven/bun:1-slim AS runner
 
 WORKDIR /app
 
@@ -20,6 +27,5 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./
 
-EXPOSE 4321
+CMD ["bun", "./dist/server/entry.mjs"]
 
-CMD ["node", "./dist/server/entry.mjs"]
