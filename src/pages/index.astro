@@ -18,21 +18,43 @@ const allBirthdays = await getAllBirthdays();
 const upcomingBirthdays = await getUpcomingBirthdays(30);
 const todaysBirthdays = await getTodaysBirthdays();
 
+const allUsers = [...new Map(
+  [...upcomingBirthdays, ...todaysBirthdays, ...allBirthdays, currentUser]
+    .map(u => [u.slack_id, u])
+).values()];
+
 const channelIds = [...new Set(
-  [...upcomingBirthdays, ...todaysBirthdays, ...allBirthdays]
-    .map(u => u.slack_channel)
-    .filter((c): c is string => !!c)
+  allUsers.map(u => u.slack_channel).filter((c): c is string => !!c)
 )];
-const channelNames = new Map<string, string>();
-await Promise.all(channelIds.map(async (id) => {
-  try {
-    const res = await fetch(`https://flaron.halceon.dev/channel/${id}`);
-    if (res.ok) {
-      const data = await res.json();
-      if (data.name) channelNames.set(id, data.name);
-    }
-  } catch {}
-}));
+
+const [channelNames, displayNames] = await Promise.all([
+  Promise.all(channelIds.map(async (id) => {
+    try {
+      const res = await fetch(`https://flaron.halceon.dev/channel/${id}`);
+      if (res.ok) {
+        const data = await res.json();
+        return [id, data.name as string] as const;
+      }
+    } catch {}
+    return null;
+  })).then(results => new Map(results.filter((r): r is [string, string] => !!r))),
+
+  Promise.all(allUsers.map(async (u) => {
+    try {
+      const res = await fetch(`https://flaron.halceon.dev/user/${u.slack_id}`);
+      if (res.ok) {
+        const data = await res.json();
+        const name: string = data?.data?.user?.display_name;
+        if (name) return [u.slack_id, name] as const;
+      }
+    } catch {}
+    return null;
+  })).then(results => new Map(results.filter((r): r is [string, string] => !!r))),
+]);
+
+function displayName(user: { slack_id: string; slack_username: string }): string {
+  return displayNames.get(user.slack_id) || user.slack_username;
+}
 
 const today = new Date();
 today.setHours(0, 0, 0, 0);
@@ -95,7 +117,7 @@ const error = Astro.url.searchParams.get("error");
       {currentUser.avatar_url && (
         <img src={currentUser.avatar_url} alt="" class="w-7 h-7 rounded-full" />
       )}
-      <span class="text-sm text-[#aaa]">@{currentUser.slack_username}</span>
+      <span class="text-sm text-[#aaa]">@{displayName(currentUser)}</span>
     </a>
     <a
       href="/api/auth/logout"
@@ -138,7 +160,7 @@ const error = Astro.url.searchParams.get("error");
         const users = birthdaysByDay.get(day) || [];
         const cellData = users.length > 0
           ? JSON.stringify(users.map(u => ({
-              username: u.slack_username,
+              username: displayName(u),
               avatar: u.avatar_url,
               year: u.birth_year,
               channelId: u.slack_channel ?? null,
@@ -160,14 +182,14 @@ const error = Astro.url.searchParams.get("error");
                 u.avatar_url ? (
                   <img
                     src={u.avatar_url}
-                    alt={u.slack_username}
+                    alt={displayName(u)}
                     class="w-5 h-5 rounded-full"
                   />
                 ) : (
                   <div
                     class="w-5 h-5 rounded-full bg-[#222] flex items-center justify-center text-[9px] text-[#777]"
                   >
-                    {u.slack_username[0].toUpperCase()}
+                    {displayName(u)[0].toUpperCase()}
                   </div>
                 )
               )}
@@ -200,10 +222,10 @@ const error = Astro.url.searchParams.get("error");
               <img src={user.avatar_url} alt="" class="w-8 h-8 rounded-full" />
             ) : (
               <div class="w-8 h-8 rounded-full bg-[#1a1a1a] flex items-center justify-center text-sm text-[#666]">
-                {user.slack_username[0].toUpperCase()}
+                {displayName(user)[0].toUpperCase()}
               </div>
             )}
-            <span class="text-sm text-[#e2e2e2]">@{user.slack_username}</span>
+            <span class="text-sm text-[#e2e2e2]">@{displayName(user)}</span>
             {user.slack_channel && channelNames.get(user.slack_channel) && (
               <a
                 href={`https://hackclub.slack.com/archives/${user.slack_channel}`}
@@ -242,11 +264,11 @@ const error = Astro.url.searchParams.get("error");
                 <img src={user.avatar_url} alt="" class="w-7 h-7 rounded-full shrink-0" />
               ) : (
                 <div class="w-7 h-7 rounded-full bg-[#1a1a1a] flex items-center justify-center text-xs text-[#666] shrink-0">
-                  {user.slack_username[0].toUpperCase()}
+                  {displayName(user)[0].toUpperCase()}
                 </div>
               )}
               <span class="text-sm flex-1 min-w-0 truncate text-[#ccc]">
-                @{user.slack_username}
+                @{displayName(user)}
               </span>
               {user.slack_channel && channelNames.get(user.slack_channel) && (
                 <a
