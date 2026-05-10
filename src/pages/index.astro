@@ -1,0 +1,160 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { getCurrentUser } from '../lib/session';
+import { getUpcomingBirthdays, getTodaysBirthdays, type User } from '../lib/db';
+
+const currentUser = await getCurrentUser(Astro.cookies);
+const upcomingBirthdays = await getUpcomingBirthdays(50);
+const todaysBirthdays = await getTodaysBirthdays();
+
+const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function formatBirthday(user: User): string {
+  const month = monthNames[user.birthday_month! - 1];
+  return `${month} ${user.birthday_day}`;
+}
+
+function getDaysUntil(user: User): number {
+  const today = new Date();
+  const thisYear = today.getFullYear();
+  let birthday = new Date(thisYear, user.birthday_month! - 1, user.birthday_day!);
+  if (birthday < today) {
+    birthday = new Date(thisYear + 1, user.birthday_month! - 1, user.birthday_day!);
+  }
+  const diff = birthday.getTime() - today.getTime();
+  return Math.ceil(diff / (1000 * 60 * 60 * 24));
+}
+
+const error = Astro.url.searchParams.get('error');
+---
+
+<Layout title="Hack Club Birthdays">
+  <nav slot="header-right" class="flex items-center gap-4">
+    {currentUser ? (
+      <>
+        <a href="/profile" class="flex items-center gap-2 hover:opacity-80 transition">
+          {currentUser.avatar_url && (
+            <img src={currentUser.avatar_url} alt="" class="w-8 h-8 rounded-full" />
+          )}
+          <span class="text-sm">@{currentUser.slack_username}</span>
+        </a>
+        <a href="/api/auth/logout" class="text-sm text-white/60 hover:text-white transition">Logout</a>
+      </>
+    ) : (
+      <a href="/api/auth/login" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg text-sm font-medium transition">
+        Sign in with Slack
+      </a>
+    )}
+  </nav>
+
+  {error && (
+    <div class="bg-red-500/20 border border-red-500/50 rounded-lg p-4 mb-6">
+      <p class="text-red-200">Authentication error: {error}</p>
+    </div>
+  )}
+
+  {todaysBirthdays.length > 0 && (
+    <div class="bg-gradient-to-r from-pink-500/20 to-purple-500/20 border border-pink-500/30 rounded-xl p-6 mb-8">
+      <h2 class="text-2xl font-bold mb-4 flex items-center gap-2">
+        <span>🎉</span> Today's Birthdays!
+      </h2>
+      <div class="grid gap-3">
+        {todaysBirthdays.map((user) => (
+          <div class="flex items-center gap-4 bg-white/5 rounded-lg p-4">
+            {user.avatar_url ? (
+              <img src={user.avatar_url} alt="" class="w-12 h-12 rounded-full" />
+            ) : (
+              <div class="w-12 h-12 rounded-full bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center text-xl">
+                🎂
+              </div>
+            )}
+            <div class="flex-1">
+              <p class="font-semibold text-lg">@{user.slack_username}</p>
+              {user.birth_year && (
+                <p class="text-white/60 text-sm">Turning {new Date().getFullYear() - user.birth_year}!</p>
+              )}
+            </div>
+            {user.slack_channel && (
+              <a
+                href={`https://hackclub.slack.com/app_redirect?channel=${user.slack_channel}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="bg-pink-500 hover:bg-pink-600 px-4 py-2 rounded-lg text-sm font-medium transition"
+              >
+                Wish them happy birthday!
+              </a>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )}
+
+  <div class="mb-8">
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="text-2xl font-bold">Upcoming Birthdays</h2>
+      {!currentUser && (
+        <a href="/api/auth/login" class="text-sm text-white/60 hover:text-white transition">
+          Sign in to add yours
+        </a>
+      )}
+    </div>
+
+    {upcomingBirthdays.length === 0 ? (
+      <div class="text-center py-12 text-white/60">
+        <p class="text-6xl mb-4">🎂</p>
+        <p class="text-lg">No birthdays registered yet.</p>
+        {currentUser ? (
+          <a href="/profile" class="text-purple-300 hover:text-purple-200 underline mt-2 inline-block">
+            Be the first to add yours!
+          </a>
+        ) : (
+          <a href="/api/auth/login" class="text-purple-300 hover:text-purple-200 underline mt-2 inline-block">
+            Sign in to add your birthday
+          </a>
+        )}
+      </div>
+    ) : (
+      <div class="grid gap-3">
+        {upcomingBirthdays.map((user) => {
+          const daysUntil = getDaysUntil(user);
+          return (
+            <div class="flex items-center gap-4 bg-white/5 hover:bg-white/10 rounded-lg p-4 transition">
+              {user.avatar_url ? (
+                <img src={user.avatar_url} alt="" class="w-10 h-10 rounded-full" />
+              ) : (
+                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-blue-500 flex items-center justify-center">
+                  🎂
+                </div>
+              )}
+              <div class="flex-1 min-w-0">
+                <p class="font-medium truncate">@{user.slack_username}</p>
+                <p class="text-white/60 text-sm">{formatBirthday(user)}</p>
+              </div>
+              <div class="text-right">
+                {daysUntil === 0 ? (
+                  <span class="text-pink-400 font-bold">Today!</span>
+                ) : daysUntil === 1 ? (
+                  <span class="text-purple-300 font-medium">Tomorrow</span>
+                ) : (
+                  <span class="text-white/60 text-sm">{daysUntil} days</span>
+                )}
+              </div>
+              {user.slack_channel && (
+                <a
+                  href={`https://hackclub.slack.com/app_redirect?channel=${user.slack_channel}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-purple-300 hover:text-purple-200 text-sm"
+                  title="Go to their channel"
+                >
+                  #{user.slack_channel}
+                </a>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    )}
+  </div>
+</Layout>
