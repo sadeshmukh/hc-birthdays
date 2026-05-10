@@ -102,7 +102,7 @@ export async function getUpcomingBirthdays(limit = 20): Promise<User[]> {
      WHERE birthday_month IS NOT NULL AND birthday_day IS NOT NULL
      ORDER BY
        CASE
-         WHEN (birthday_month, birthday_day) >= (EXTRACT(MONTH FROM CURRENT_DATE), EXTRACT(DAY FROM CURRENT_DATE))
+         WHEN (birthday_month, birthday_day) > (EXTRACT(MONTH FROM CURRENT_DATE), EXTRACT(DAY FROM CURRENT_DATE))
          THEN 0
          ELSE 1
        END,
