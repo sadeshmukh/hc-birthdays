@@ -9,14 +9,14 @@ export const GET: APIRoute = async ({ request }) => {
   if (error) {
     return new Response(null, {
       status: 302,
-      headers: { Location: '/?error=auth_denied' },
+      headers: { Location: `/api/auth/login` },
     });
   }
 
   if (!code) {
-    return new Response(null, {
-      status: 302,
-      headers: { Location: '/?error=no_code' },
+    return new Response(`<html><body><p>Missing auth code. <a href="/api/auth/login">Try again</a></p></body></html>`, {
+      status: 400,
+      headers: { 'Content-Type': 'text/html' },
     });
   }
 
@@ -27,16 +27,16 @@ export const GET: APIRoute = async ({ request }) => {
     return new Response(null, {
       status: 302,
       headers: {
-        Location: '/profile',
+        Location: '/',
         'Set-Cookie': `session=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${60 * 60 * 24 * 7}`,
       },
     });
   } catch (err) {
     console.error('Auth error:', err);
-    const message = err instanceof Error ? err.message : 'unknown';
-    return new Response(null, {
-      status: 302,
-      headers: { Location: `/?error=${encodeURIComponent(message)}` },
+    const message = err instanceof Error ? err.message : 'unknown error';
+    return new Response(`<html><body><p>Auth failed: ${message}. <a href="/api/auth/login">Try again</a></p></body></html>`, {
+      status: 500,
+      headers: { 'Content-Type': 'text/html' },
     });
   }
 };
