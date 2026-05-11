@@ -1,31 +1,29 @@
 # HC Birthdays
 
-Birthday tracking for Hack Club members. Sign in with Hack Club Auth, set your birthday and optionally a Slack channel where people can find you, and see everyone's upcoming birthdays on a calendar.
+Track birthdays of HCers! Uses Astro & Tailwind + stores in Postgres.
 
-Live at [bd.halceon.dev](https://bd.halceon.dev).
+What does this one provide over other options? It's got a fancy shmancy channel search with private channel support, and will (soon) ping you on Slack if you want for reminders for birthdays!
+
+Try it now: [bd.halceon.dev](https://bd.halceon.dev)
 
 ## Running locally
 
-Copy `.env.example` to `.env` and fill in the values, then:
+Copy `.env.example` to `.env` and fill in the values, then start the DB:
 
 ```bash
-docker compose up -d
+docker-compose up -d db
 ```
 
-The app will be at `http://localhost:4321`.
+Start the app:
+
+```bash
+bun i && bun dev
+```
+
+Before making any commits, make sure to `bun format`!
 
 ## Environment variables
 
-| Variable | Description |
-|---|---|
-| `DATABASE_URL` | Postgres connection string — use `@db:5432` when running via Docker Compose |
-| `HCA_CLIENT_ID` | Hack Club Auth OAuth client ID |
-| `HCA_CLIENT_SECRET` | Hack Club Auth OAuth client secret |
-| `PUBLIC_BASE_URL` | Public base URL (e.g. `https://bd.halceon.dev`) |
-| `SESSION_SECRET` | Random string, at least 32 chars |
+For the DB, you can use the default `postgresql://postgres:postgres@localhost:5432/hc_birthdays` if running with Docker, or set up another Postgres instance and update the URL accordingly.
 
-To get HCA credentials: enable developer mode at [auth.hackclub.com](https://auth.hackclub.com), create an app, and set the redirect URL to `{PUBLIC_BASE_URL}/api/auth/callback` with scope `slack_id`.
-
-## Stack
-
-Astro (SSR) · Tailwind · PostgreSQL
+HCA creds can be obtained with an app at auth.hackclub.com with the slack_id scope.
