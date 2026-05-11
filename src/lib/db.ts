@@ -19,6 +19,8 @@ export async function initDb() {
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS slack_channel_name TEXT`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS slack_channel_is_private BOOLEAN DEFAULT FALSE`);
 }
 
 export interface User {
@@ -30,6 +32,8 @@ export interface User {
   birthday_day: number | null;
   birth_year: number | null;
   slack_channel: string | null;
+  slack_channel_name: string | null;
+  slack_channel_is_private: boolean | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -65,6 +69,8 @@ export async function updateBirthday(
   day: number,
   year: number | null,
   channel: string | null,
+  channelName: string | null,
+  channelIsPrivate: boolean,
 ): Promise<User> {
   const result = await pool.query(
     `UPDATE users SET
@@ -72,10 +78,12 @@ export async function updateBirthday(
        birthday_day = $3,
        birth_year = $4,
        slack_channel = $5,
+       slack_channel_name = $6,
+       slack_channel_is_private = $7,
        updated_at = CURRENT_TIMESTAMP
      WHERE slack_id = $1
      RETURNING *`,
-    [slackId, month, day, year, channel],
+    [slackId, month, day, year, channel, channelName, channelIsPrivate],
   );
   return result.rows[0];
 }

@@ -8,13 +8,18 @@ if (!currentUser) {
   return Astro.redirect("/api/auth/login");
 }
 
-let channelName: string | null = null;
-if (currentUser.slack_channel) {
+let channelName: string | null = currentUser.slack_channel_name;
+let channelIsPrivate: boolean = currentUser.slack_channel_is_private ?? false;
+
+if (currentUser.slack_channel && !channelName) {
   try {
-    const res = await fetch(`https://flaron.halceon.dev/channel/${currentUser.slack_channel}`);
+    const res = await fetch(
+      `https://flaron.halceon.dev/channel/${currentUser.slack_channel}`,
+    );
     if (res.ok) {
       const data = await res.json();
       channelName = data.name ?? null;
+      channelIsPrivate = !("created" in data);
     }
   } catch {}
 }
@@ -143,37 +148,101 @@ const currentYear = new Date().getFullYear();
 
       <div class="flex flex-col gap-1.5">
         <label
-          for="channel"
+          for="channel-search"
           class="text-[10px] text-[#555] uppercase tracking-wider"
         >
           Slack channel <span class="text-[#333] normal-case">optional</span>
         </label>
+
         <input
-          type="text"
-          id="channel"
+          type="hidden"
           name="channel"
+          id="channel-value"
           value={currentUser.slack_channel || ""}
-          placeholder="C0XXXXXXXXX"
-          class="bg-[#161616] border border-[#252525] rounded-md px-3 py-2 text-sm text-[#e2e2e2] placeholder:text-[#2a2a2a] focus:outline-none focus:border-[#ec3750] font-mono"
         />
-        {channelName ? (
-          <p class="text-[11px] text-[#555]">
-            currently{" "}
-            <a
-              href={`https://hackclub.slack.com/archives/${currentUser.slack_channel}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              class="text-[#ec3750] hover:opacity-80 transition-opacity"
-            >
-              #{channelName}
-            </a>
-            {" "}· so people can wish you happy birthday
-          </p>
-        ) : (
-          <p class="text-[11px] text-[#333]">
-            paste your channel ID · so people can wish you happy birthday
-          </p>
-        )}
+        <input
+          type="hidden"
+          name="channel_name"
+          id="channel-name-value"
+          value={channelName || ""}
+        />
+        <input
+          type="hidden"
+          name="channel_is_private"
+          id="channel-private-value"
+          value={String(channelIsPrivate)}
+        />
+
+        <!-- Selected channel display -->
+        <div
+          id="channel-display"
+          class={`${channelName ? "flex" : "hidden"} items-center gap-2 bg-[#161616] border border-[#252525] rounded-md px-3 py-2`}
+        >
+          <span
+            class="text-sm text-[#e2e2e2] truncate"
+            id="channel-display-name"
+          >
+            {channelName ? `#${channelName}` : ""}
+          </span>
+          <span
+            class="text-xs text-[#444] font-mono ml-auto shrink-0"
+            id="channel-display-id"
+          >
+            {currentUser.slack_channel || ""}
+          </span>
+          <span
+            id="channel-display-private"
+            class={`text-[10px] text-[#777] border border-[#2a2a2a] rounded px-1 py-0.5 shrink-0 ${channelIsPrivate ? "" : "hidden"}`}
+            >private</span
+          >
+          <button
+            type="button"
+            id="channel-clear"
+            class="text-[#444] hover:text-[#888] text-base leading-none ml-1 shrink-0"
+            aria-label="Clear channel">×</button
+          >
+        </div>
+
+        <!-- Search input -->
+        <div
+          id="channel-search-wrapper"
+          class={`${channelName ? "hidden" : ""} relative`}
+        >
+          <input
+            type="text"
+            id="channel-search"
+            autocomplete="off"
+            placeholder="search by name or paste channel ID"
+            value={!channelName && currentUser.slack_channel
+              ? currentUser.slack_channel
+              : ""}
+            class="w-full bg-[#161616] border border-[#252525] rounded-md px-3 py-2 text-sm text-[#e2e2e2] placeholder:text-[#333] focus:outline-none focus:border-[#ec3750]"
+          />
+          <div
+            id="channel-dropdown"
+            class="hidden absolute z-10 top-full mt-1 left-0 right-0 bg-[#161616] border border-[#252525] rounded-md shadow-xl overflow-hidden"
+          >
+            <div id="channel-dropdown-content"></div>
+          </div>
+        </div>
+
+        <p
+          id="channel-status"
+          class={`text-[11px] text-[#ec3750] ${!currentUser.slack_channel || channelName ? "hidden" : ""}`}
+        >
+          channel not found · try searching by name if possible
+        </p>
+
+        <p
+          id="channel-private-note"
+          class={`text-[11px] text-[#555] ${channelIsPrivate ? "" : "hidden"}`}
+        >
+          private channel — its name won't be shown to others
+        </p>
+
+        <p class="text-[11px] text-[#333]">
+          so people can wish you happy birthday
+        </p>
       </div>
 
       <button
@@ -185,3 +254,167 @@ const currentYear = new Date().getFullYear();
     </form>
   </div>
 </Layout>
+
+<script>
+  const form = document.querySelector<HTMLFormElement>("form")!;
+  const hiddenId = document.getElementById("channel-value") as HTMLInputElement;
+  const hiddenName = document.getElementById(
+    "channel-name-value",
+  ) as HTMLInputElement;
+  const hiddenPrivate = document.getElementById(
+    "channel-private-value",
+  ) as HTMLInputElement;
+  const display = document.getElementById("channel-display")!;
+  const displayName = document.getElementById("channel-display-name")!;
+  const displayId = document.getElementById("channel-display-id")!;
+  const displayPrivate = document.getElementById("channel-display-private")!;
+  const clearBtn = document.getElementById("channel-clear")!;
+  const searchWrapper = document.getElementById("channel-search-wrapper")!;
+  const searchInput = document.getElementById(
+    "channel-search",
+  ) as HTMLInputElement;
+  const dropdown = document.getElementById("channel-dropdown")!;
+  const dropdownContent = document.getElementById("channel-dropdown-content")!;
+  const statusEl = document.getElementById("channel-status")!;
+  const privateNote = document.getElementById("channel-private-note")!;
+
+  let debounceTimer: ReturnType<typeof setTimeout>;
+
+  function renderDropdownItem(
+    name: string,
+    id: string,
+    isPrivate: boolean,
+  ): HTMLButtonElement {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className =
+      "w-full flex items-center gap-2 px-3 py-2.5 hover:bg-[#1a1a1a] text-left transition-colors";
+    btn.innerHTML = `
+      <span class="text-sm text-[#e2e2e2]">#${name}</span>
+      <span class="text-xs text-[#444] font-mono ml-auto shrink-0">${id}</span>
+      ${isPrivate ? '<span class="text-[10px] text-[#777] border border-[#2a2a2a] rounded px-1 py-0.5 shrink-0">private</span>' : ""}
+    `;
+    btn.addEventListener("click", () => showSelected(name, id, isPrivate));
+    return btn;
+  }
+
+  function showSelected(name: string, id: string, isPrivate: boolean) {
+    hiddenId.value = id;
+    hiddenName.value = name;
+    hiddenPrivate.value = String(isPrivate);
+    displayName.textContent = `#${name}`;
+    displayId.textContent = id;
+    displayPrivate.classList.toggle("hidden", !isPrivate);
+    display.classList.remove("hidden");
+    display.classList.add("flex");
+    searchWrapper.classList.add("hidden");
+    dropdown.classList.add("hidden");
+    statusEl.classList.add("hidden");
+    privateNote.classList.toggle("hidden", !isPrivate);
+  }
+
+  function showSearch() {
+    display.classList.add("hidden");
+    display.classList.remove("flex");
+    searchWrapper.classList.remove("hidden");
+    searchInput.value = "";
+    hiddenId.value = "";
+    hiddenName.value = "";
+    hiddenPrivate.value = "false";
+    statusEl.classList.add("hidden");
+    privateNote.classList.add("hidden");
+    searchInput.focus();
+  }
+
+  clearBtn.addEventListener("click", showSearch);
+
+  const ID_RE = /^[CG][A-Z0-9]{5,}/i;
+
+  searchInput.addEventListener("input", () => {
+    clearTimeout(debounceTimer);
+    const q = searchInput.value.trim();
+
+    if (!q) {
+      dropdown.classList.add("hidden");
+      statusEl.classList.add("hidden");
+      return;
+    }
+
+    debounceTimer = setTimeout(async () => {
+      try {
+        if (ID_RE.test(q)) {
+          const res = await fetch(`/api/channel?id=${encodeURIComponent(q)}`);
+          const data = (await res.json()) as {
+            found: boolean;
+            name?: string;
+            id?: string;
+            is_private?: boolean;
+          };
+          if (data.found && data.name && data.id) {
+            dropdownContent.replaceChildren(
+              renderDropdownItem(data.name, data.id, data.is_private ?? false),
+            );
+            dropdown.classList.remove("hidden");
+            statusEl.classList.add("hidden");
+          } else {
+            dropdown.classList.add("hidden");
+            statusEl.textContent =
+              "channel not found · try searching by name if possible";
+            statusEl.classList.remove("hidden");
+          }
+        } else {
+          type ExactResult = {
+            found: boolean;
+            name?: string;
+            id?: string;
+            is_private?: boolean;
+          };
+          type SearchResult = {
+            results: { name: string; id: string; is_private: boolean }[];
+          };
+          const [exactRes, searchRes] = await Promise.all([
+            fetch(`/api/channel?id=${encodeURIComponent(q)}`),
+            fetch(`/api/channel?q=${encodeURIComponent(q)}`),
+          ]);
+          const exact = (await exactRes.json()) as ExactResult;
+          const search = (await searchRes.json()) as SearchResult;
+
+          const items: HTMLButtonElement[] = [];
+
+          if (exact.found && exact.name && exact.id) {
+            items.push(
+              renderDropdownItem(
+                exact.name,
+                exact.id,
+                exact.is_private ?? false,
+              ),
+            );
+          }
+
+          for (const r of search.results ?? []) {
+            if (r.id !== exact.id) {
+              items.push(renderDropdownItem(r.name, r.id, r.is_private));
+            }
+          }
+
+          if (items.length > 0) {
+            dropdownContent.replaceChildren(...items);
+            dropdown.classList.remove("hidden");
+            statusEl.classList.add("hidden");
+          } else {
+            dropdown.classList.add("hidden");
+            statusEl.classList.add("hidden");
+          }
+        }
+      } catch {
+        dropdown.classList.add("hidden");
+      }
+    }, 300);
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!searchWrapper.contains(e.target as Node)) {
+      dropdown.classList.add("hidden");
+    }
+  });
+</script>
