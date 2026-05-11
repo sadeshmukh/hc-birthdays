@@ -7,7 +7,6 @@ RUN bun install --frozen-lockfile
 
 COPY . .
 
-# Build-time env vars (needed by Astro for PUBLIC_* vars)
 ARG PUBLIC_BASE_URL
 ARG HCA_CLIENT_ID
 ARG HCA_CLIENT_SECRET

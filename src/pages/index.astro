@@ -2,16 +2,16 @@
 import Layout from "../layouts/Layout.astro";
 import { getCurrentUser } from "../lib/session";
 import {
-  getUpcomingBirthdays,
-  getAllBirthdays,
-  getTodaysBirthdays,
-  type User,
+	getUpcomingBirthdays,
+	getAllBirthdays,
+	getTodaysBirthdays,
+	type User,
 } from "../lib/db";
 
 const currentUser = await getCurrentUser(Astro.cookies);
 
 if (!currentUser) {
-  return Astro.redirect("/api/auth/login");
+	return Astro.redirect("/api/auth/login");
 }
 
 const dateParam = Astro.url.searchParams.get("date");
@@ -22,87 +22,87 @@ const upcomingBirthdays = await getUpcomingBirthdays(30, today);
 const todaysBirthdays = await getTodaysBirthdays(today);
 
 const allUsers = [
-  ...new Map(
-    [
-      ...upcomingBirthdays,
-      ...todaysBirthdays,
-      ...allBirthdays,
-      currentUser,
-    ].map((u) => [u.slack_id, u]),
-  ).values(),
+	...new Map(
+		[
+			...upcomingBirthdays,
+			...todaysBirthdays,
+			...allBirthdays,
+			currentUser,
+		].map((u) => [u.slack_id, u]),
+	).values(),
 ];
 
 const channelData = new Map<string, { name: string; is_private: boolean }>();
 for (const u of allUsers) {
-  if (u.slack_channel && u.slack_channel_name) {
-    channelData.set(u.slack_channel, {
-      name: u.slack_channel_name,
-      is_private: u.slack_channel_is_private ?? false,
-    });
-  }
+	if (u.slack_channel && u.slack_channel_name) {
+		channelData.set(u.slack_channel, {
+			name: u.slack_channel_name,
+			is_private: u.slack_channel_is_private ?? false,
+		});
+	}
 }
 
 const channelIdsNeedingLookup = [
-  ...new Set(
-    allUsers
-      .filter((u) => u.slack_channel && !channelData.has(u.slack_channel))
-      .map((u) => u.slack_channel as string),
-  ),
+	...new Set(
+		allUsers
+			.filter((u) => u.slack_channel && !channelData.has(u.slack_channel))
+			.map((u) => u.slack_channel as string),
+	),
 ];
 
 const [, displayNames] = await Promise.all([
-  Promise.all(
-    channelIdsNeedingLookup.map(async (id) => {
-      try {
-        const res = await fetch(`https://flaron.halceon.dev/channel/${id}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.name)
-            channelData.set(id, {
-              name: data.name as string,
-              is_private: !("created" in data),
-            });
-        }
-      } catch {}
-    }),
-  ),
+	Promise.all(
+		channelIdsNeedingLookup.map(async (id) => {
+			try {
+				const res = await fetch(`https://flaron.halceon.dev/channel/${id}`);
+				if (res.ok) {
+					const data = await res.json();
+					if (data.name)
+						channelData.set(id, {
+							name: data.name as string,
+							is_private: !("created" in data),
+						});
+				}
+			} catch {}
+		}),
+	),
 
-  Promise.all(
-    allUsers.map(async (u) => {
-      try {
-        const res = await fetch(
-          `https://flaron.halceon.dev/user/${u.slack_id}`,
-        );
-        if (res.ok) {
-          const data = await res.json();
-          const name: string = data?.data?.user?.display_name;
-          if (name) return [u.slack_id, name] as const;
-        }
-      } catch {}
-      return null;
-    }),
-  ).then(
-    (results) => new Map(results.filter((r): r is [string, string] => !!r)),
-  ),
+	Promise.all(
+		allUsers.map(async (u) => {
+			try {
+				const res = await fetch(
+					`https://flaron.halceon.dev/user/${u.slack_id}`,
+				);
+				if (res.ok) {
+					const data = await res.json();
+					const name: string = data?.data?.user?.display_name;
+					if (name) return [u.slack_id, name] as const;
+				}
+			} catch {}
+			return null;
+		}),
+	).then(
+		(results) => new Map(results.filter((r): r is [string, string] => !!r)),
+	),
 ]);
 
 function displayName(user: {
-  slack_id: string;
-  slack_username: string;
+	slack_id: string;
+	slack_username: string;
 }): string {
-  return displayNames.get(user.slack_id) || user.slack_username;
+	return displayNames.get(user.slack_id) || user.slack_username;
 }
 
 function channelName(id: string): string | null {
-  return channelData.get(id)?.name ?? null;
+	return channelData.get(id)?.name ?? null;
 }
 
 function isPrivateChannel(id: string): boolean {
-  return channelData.get(id)?.is_private ?? false;
+	return channelData.get(id)?.is_private ?? false;
 }
 
 function publicChannelName(id: string): string | null {
-  return isPrivateChannel(id) ? null : channelName(id);
+	return isPrivateChannel(id) ? null : channelName(id);
 }
 
 today.setHours(0, 0, 0, 0);
@@ -115,17 +115,17 @@ const viewYear = yParam > 2000 ? yParam : today.getFullYear();
 const firstDayOfMonth = new Date(viewYear, viewMonth - 1, 1).getDay();
 const daysInMonth = new Date(viewYear, viewMonth, 0).getDate();
 const trailingCells =
-  (firstDayOfMonth + daysInMonth) % 7 === 0
-    ? 0
-    : 7 - ((firstDayOfMonth + daysInMonth) % 7);
+	(firstDayOfMonth + daysInMonth) % 7 === 0
+		? 0
+		: 7 - ((firstDayOfMonth + daysInMonth) % 7);
 
 const birthdaysByDay = new Map<number, User[]>();
 for (const user of allBirthdays) {
-  if (user.birthday_month === viewMonth) {
-    const d = user.birthday_day!;
-    if (!birthdaysByDay.has(d)) birthdaysByDay.set(d, []);
-    birthdaysByDay.get(d)!.push(user);
-  }
+	if (user.birthday_month === viewMonth) {
+		const d = user.birthday_day!;
+		if (!birthdaysByDay.has(d)) birthdaysByDay.set(d, []);
+		birthdaysByDay.get(d)!.push(user);
+	}
 }
 
 const prevDate = new Date(viewYear, viewMonth - 2, 1);
@@ -135,51 +135,51 @@ const prevLink = `/?m=${prevDate.getMonth() + 1}&y=${prevDate.getFullYear()}${da
 const nextLink = `/?m=${nextDate.getMonth() + 1}&y=${nextDate.getFullYear()}${dateSuffix}`;
 
 const MONTH_NAMES = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
+	"January",
+	"February",
+	"March",
+	"April",
+	"May",
+	"June",
+	"July",
+	"August",
+	"September",
+	"October",
+	"November",
+	"December",
 ];
 const SHORT_MONTHS = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
+	"Jan",
+	"Feb",
+	"Mar",
+	"Apr",
+	"May",
+	"Jun",
+	"Jul",
+	"Aug",
+	"Sep",
+	"Oct",
+	"Nov",
+	"Dec",
 ];
 const DAY_HEADERS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
 function getDaysUntil(user: User): number {
-  const t = new Date();
-  t.setHours(0, 0, 0, 0);
-  let bd = new Date(
-    t.getFullYear(),
-    user.birthday_month! - 1,
-    user.birthday_day!,
-  );
-  bd.setHours(0, 0, 0, 0);
-  if (bd < t)
-    bd = new Date(
-      t.getFullYear() + 1,
-      user.birthday_month! - 1,
-      user.birthday_day!,
-    );
-  return Math.round((bd.getTime() - t.getTime()) / 86400000);
+	const t = new Date();
+	t.setHours(0, 0, 0, 0);
+	let bd = new Date(
+		t.getFullYear(),
+		user.birthday_month! - 1,
+		user.birthday_day!,
+	);
+	bd.setHours(0, 0, 0, 0);
+	if (bd < t)
+		bd = new Date(
+			t.getFullYear() + 1,
+			user.birthday_month! - 1,
+			user.birthday_day!,
+		);
+	return Math.round((bd.getTime() - t.getTime()) / 86400000);
 }
 
 const error = Astro.url.searchParams.get("error");

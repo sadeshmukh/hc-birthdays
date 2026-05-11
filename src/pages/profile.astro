@@ -5,38 +5,38 @@ import { getCurrentUser } from "../lib/session";
 const currentUser = await getCurrentUser(Astro.cookies);
 
 if (!currentUser) {
-  return Astro.redirect("/api/auth/login");
+	return Astro.redirect("/api/auth/login");
 }
 
 let channelName: string | null = currentUser.slack_channel_name;
 let channelIsPrivate: boolean = currentUser.slack_channel_is_private ?? false;
 
 if (currentUser.slack_channel && !channelName) {
-  try {
-    const res = await fetch(
-      `https://flaron.halceon.dev/channel/${currentUser.slack_channel}`,
-    );
-    if (res.ok) {
-      const data = await res.json();
-      channelName = data.name ?? null;
-      channelIsPrivate = !("created" in data);
-    }
-  } catch {}
+	try {
+		const res = await fetch(
+			`https://flaron.halceon.dev/channel/${currentUser.slack_channel}`,
+		);
+		if (res.ok) {
+			const data = await res.json();
+			channelName = data.name ?? null;
+			channelIsPrivate = !("created" in data);
+		}
+	} catch {}
 }
 
 const MONTHS = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
+	"January",
+	"February",
+	"March",
+	"April",
+	"May",
+	"June",
+	"July",
+	"August",
+	"September",
+	"October",
+	"November",
+	"December",
 ];
 const currentYear = new Date().getFullYear();
 ---
