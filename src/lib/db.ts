@@ -80,11 +80,10 @@ export async function updateBirthday(
   return result.rows[0];
 }
 
-export async function getTodaysBirthdays(): Promise<User[]> {
-  const today = new Date();
+export async function getTodaysBirthdays(date = new Date()): Promise<User[]> {
   const result = await pool.query(
     "SELECT * FROM users WHERE birthday_month = $1 AND birthday_day = $2",
-    [today.getMonth() + 1, today.getDate()],
+    [date.getMonth() + 1, date.getDate()],
   );
   return result.rows;
 }
@@ -96,20 +95,20 @@ export async function getAllBirthdays(): Promise<User[]> {
   return result.rows;
 }
 
-export async function getUpcomingBirthdays(limit = 20): Promise<User[]> {
+export async function getUpcomingBirthdays(limit = 20, date = new Date()): Promise<User[]> {
   const result = await pool.query(
     `SELECT * FROM users
      WHERE birthday_month IS NOT NULL AND birthday_day IS NOT NULL
      ORDER BY
        CASE
-         WHEN (birthday_month, birthday_day) > (EXTRACT(MONTH FROM CURRENT_DATE), EXTRACT(DAY FROM CURRENT_DATE))
+         WHEN (birthday_month, birthday_day) > ($2, $3)
          THEN 0
          ELSE 1
        END,
        birthday_month,
        birthday_day
      LIMIT $1`,
-    [limit],
+    [limit, date.getMonth() + 1, date.getDate()],
   );
   return result.rows;
 }

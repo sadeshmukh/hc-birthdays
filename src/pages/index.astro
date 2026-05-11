@@ -14,9 +14,12 @@ if (!currentUser) {
   return Astro.redirect("/api/auth/login");
 }
 
+const dateParam = Astro.url.searchParams.get("date");
+const today = dateParam ? new Date(dateParam + "T00:00:00") : new Date();
+
 const allBirthdays = await getAllBirthdays();
-const upcomingBirthdays = await getUpcomingBirthdays(30);
-const todaysBirthdays = await getTodaysBirthdays();
+const upcomingBirthdays = await getUpcomingBirthdays(30, today);
+const todaysBirthdays = await getTodaysBirthdays(today);
 
 const allUsers = [...new Map(
   [...upcomingBirthdays, ...todaysBirthdays, ...allBirthdays, currentUser]
@@ -56,7 +59,6 @@ function displayName(user: { slack_id: string; slack_username: string }): string
   return displayNames.get(user.slack_id) || user.slack_username;
 }
 
-const today = new Date();
 today.setHours(0, 0, 0, 0);
 
 const mParam = parseInt(Astro.url.searchParams.get("m") || "");
@@ -82,8 +84,9 @@ for (const user of allBirthdays) {
 
 const prevDate = new Date(viewYear, viewMonth - 2, 1);
 const nextDate = new Date(viewYear, viewMonth, 1);
-const prevLink = `/?m=${prevDate.getMonth() + 1}&y=${prevDate.getFullYear()}`;
-const nextLink = `/?m=${nextDate.getMonth() + 1}&y=${nextDate.getFullYear()}`;
+const dateSuffix = dateParam ? `&date=${dateParam}` : "";
+const prevLink = `/?m=${prevDate.getMonth() + 1}&y=${prevDate.getFullYear()}${dateSuffix}`;
+const nextLink = `/?m=${nextDate.getMonth() + 1}&y=${nextDate.getFullYear()}${dateSuffix}`;
 
 const MONTH_NAMES = [
   "January","February","March","April","May","June",
@@ -301,6 +304,15 @@ const error = Astro.url.searchParams.get("error");
 </Layout>
 
 <script>
+  // Redirect with local date if server date doesn't match client date
+  const localDate = new Date();
+  const localDateStr = `${localDate.getFullYear()}-${String(localDate.getMonth() + 1).padStart(2, '0')}-${String(localDate.getDate()).padStart(2, '0')}`;
+  const params = new URLSearchParams(location.search);
+  if (params.get('date') !== localDateStr) {
+    params.set('date', localDateStr);
+    location.replace(`${location.pathname}?${params.toString()}`);
+  }
+
   const popup = document.getElementById('cal-popup')!;
 
   document.querySelectorAll<HTMLElement>('[data-users]').forEach((cell) => {
